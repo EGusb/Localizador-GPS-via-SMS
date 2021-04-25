@@ -233,7 +233,7 @@ void ejecutar_comando_usb(String comando) {
     if (numMemElegido.equalsIgnoreCase("todo")) {
       SerialSim.println("AT+CMGL=\"ALL\"");   // Comando AT para leer todos los SMS en memoria
       ultimoComandoEnviado = "Leer todos los SMS";
-      esperar_confirmacion("OK", 10000);       // Se imprime todo por consola durante 10 segundos
+      esperar_confirmacion("OK", 20000);       // Se imprime todo por consola durante 20 segundos
     } else {
       Serial.print("Seleccione el dato a leer ");
       Serial.println("(estado, numero, texto, fecha, hora, gmt, todo)");
@@ -556,7 +556,7 @@ void procesar_gps() {
 
   if (millis() - millisGps >= tiempoEspera) {
     millisGps = millis();
-    LeerInfoGPS();
+    leer_info_gps();
   }
 
   if (millis() - millisFalloGps >= 5000 && ObjectGps.charsProcessed() < 10) {
@@ -566,7 +566,7 @@ void procesar_gps() {
 }
 /***********************************************************************************
 ***********************************************************************************/
-void LeerInfoGPS() {
+void leer_info_gps() {
   satelitesGps = String(ObjectGps.satellites.value());
   latitudGps = String(ObjectGps.location.lat(), 6);
   longitudGps = String(ObjectGps.location.lng(), 6);
