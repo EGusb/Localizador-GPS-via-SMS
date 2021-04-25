@@ -466,17 +466,7 @@ void sms_recibido(String textoSms) {
 /***********************************************************************************
 ***********************************************************************************/
 String extraer_info_sms(String posMem, String datoBuscado) {
-  String anio = "",
-         datoEncontrado = "",
-         dia = "",
-         digitos = "",
-         estado = "",
-         fecha = "",
-         gmt = "",
-         hora = "",
-         mes = "",
-         numero = "",
-         signo = "",;
+  String datoEncontrado = "";
 
   /*********************************************************
     Comando de lectura de un SMS en la memoria:
@@ -501,56 +491,51 @@ String extraer_info_sms(String posMem, String datoBuscado) {
 
   //primeraLinea = quitar_char_en_string(primeraLinea, '\r');
   datosMsje = quitar_char_en_string(datosMsje, '\r');
-  datosMsje = quitar_char_en_string(datosMsje, '\"');
+  String extraerDatos = quitar_char_en_string(datosMsje, '\"');
   texto = quitar_char_en_string(texto, '\r');
   confirmacion = quitar_char_en_string(confirmacion, '\r');
 
-  if (datosMsje.startsWith("OK")) {
+  if (extraerDatos.startsWith("OK")) {
     datoEncontrado = "ERROR: No se encuentra un SMS en esa dirección de memoria.";
 
   } else {
-    datosMsje.remove(0, 7);
+    extraerDatos.remove(0, extraerDatos.indexOf(' ') + 1);
 
-    estado = datosMsje.substring(
-               datosMsje.indexOf('"'),
-               datosMsje.indexOf(',')
-             );
-    numero = datosMsje.substring(
-               datosMsje.indexOf("\",\"") + 3,
-               datosMsje.indexOf("\",\"\",\"")
-             );
-    anio = datosMsje.substring(
-             datosMsje.indexOf('/') - 2,
-             datosMsje.indexOf('/')
-           );
-    mes = datosMsje.substring(
-            datosMsje.indexOf('/') + 1,
-            datosMsje.indexOf('/') + 3
-          );
-    dia = datosMsje.substring(
-            datosMsje.indexOf('/') + 4,
-            datosMsje.indexOf('/') + 6
-          );
-    hora = datosMsje.substring(
-             datosMsje.indexOf(':') - 2,
-             datosMsje.indexOf(':') + 6
-           );
-    signo = datosMsje.substring(
-              datosMsje.indexOf(':') + 6,
-              datosMsje.indexOf(':') + 7
-            );
-    digitos = datosMsje.substring(
-                datosMsje.indexOf(':') + 7,
-                datosMsje.indexOf(':') + 9
-              );
-    gmt = signo + String(digitos.toInt() / 4);
+    String estado = extraerDatos.substring(0, extraerDatos.indexOf(','));   // REC READ
+    extraerDatos.remove(0, extraerDatos.indexOf(',') + 1);
 
-    fecha = dia + '/' + mes + '/' + anio;
+    String numero = extraerDatos.substring(0, extraerDatos.indexOf(','));   // 03624164072
+    extraerDatos.remove(0, extraerDatos.indexOf(',') + 2);
 
-    estado = quitar_char_en_string(estado, '\r');
-    numero = quitar_char_en_string(numero, '\r');
-    fecha = quitar_char_en_string(fecha, '\r');
-    gmt = quitar_char_en_string(gmt, '\r');
+    /*
+        String anio = extraerDatos.substring(0, extraerDatos.indexOf('/'));     // 21
+        extraerDatos.remove(0, extraerDatos.indexOf('/') + 1);
+
+        String mes = extraerDatos.substring(0, extraerDatos.indexOf('/'));      // 04
+        extraerDatos.remove(0, extraerDatos.indexOf('/') + 1);
+
+        String dia = extraerDatos.substring(0, extraerDatos.indexOf(','));      // 23
+        extraerDatos.remove(0, extraerDatos.indexOf(',') + 1);
+    */
+    
+    String fecha = extraerDatos.substring(0, extraerDatos.indexOf('/'));         // 21
+    extraerDatos.remove(0, extraerDatos.indexOf('/') + 1);
+
+    fecha = extraerDatos.substring(0, extraerDatos.indexOf('/')) + '/' + fecha;  // 04/21
+    extraerDatos.remove(0, extraerDatos.indexOf('/') + 1);
+
+    fecha = extraerDatos.substring(0, extraerDatos.indexOf(',')) + '/' + fecha;  // 23/04/21
+    extraerDatos.remove(0, extraerDatos.indexOf(',') + 1);
+    
+    String hora = extraerDatos.substring(0, 9);   // 00:12:17
+    extraerDatos.remove(0, hora.length());
+
+    String signo = extraerDatos.substring(0, 1);  // + o -
+    extraerDatos.remove(0, 1);
+
+    //String digitos = extraerDatos;
+    String gmt = signo + String(extraerDatos.toInt() / 4);
+    //String fecha = dia + '/' + mes + '/' + anio;
 
     if (confirmacion == "OK")  {
       if (datoBuscado == "numero")  datoEncontrado = numero;
