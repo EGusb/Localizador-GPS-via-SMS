@@ -80,7 +80,7 @@ void setup()  {
   Serial.println("Iniciando...");  Serial.println();
 
   // Hacer Setup del SIM
-  setupSim(); Serial.println();
+  setup_sim(); Serial.println();
 
   Serial.println("Entrando en Loop...");
   digitalWrite(PIN_LED, HIGH);   // El Led se queda prendido durante el Setup
@@ -224,7 +224,7 @@ void ejecutar_comando_usb(String comando) {
     enviar_sms(numEnviarSms, txtEnviarSms);
     digitalWrite(PIN_LED, HIGH);
 
-  } else if (comando == cmdSetup) setupSim(); // Hacer Setup del SIM800L
+  } else if (comando == cmdSetup) setup_sim(); // Hacer Setup del SIM800L
 
   else if (comando == cmdLeerMemoriaSms) {    // Acceder a un SMS guardado en la memoria
     digitalWrite(PIN_LED, LOW);
@@ -381,7 +381,7 @@ void reset_arduino() {
    para leer errores, setear la red correctamente y verificar
    el estado general del módulo SIM.
 */
-void setupSim() {
+void setup_sim() {
   String comandos[] = {   // Comandos que se van a ejecutar
     "AT",                 // Chequear comunicación entre SIM y Arduino
     "AT+CFUN=1",          // Modo de funcionalidad
@@ -431,9 +431,6 @@ void sms_recibido(String textoSms) {
 
   String num = extraer_info_sms(posMem, "numero"),
          txt = extraer_info_sms(posMem, "texto"),
-         fch = extraer_info_sms(posMem, "fecha"),
-         hrs = extraer_info_sms(posMem, "hora"),
-         gmt = extraer_info_sms(posMem, "gmt"),
          todo = extraer_info_sms(posMem, "todo");
 
   Serial.println(todo + '\n');   // Se imprime el mensaje con toda la información
@@ -444,7 +441,7 @@ void sms_recibido(String textoSms) {
     enviar_sms(num, "Polo");
 
   } else if (txt == cmdSetup) {
-    setupSim();
+    setup_sim();
     enviar_sms(num, "Setup iniciado exitosamente");
 
   } else if (txt == cmdLeerGps) {
@@ -470,7 +467,6 @@ void sms_recibido(String textoSms) {
 ***********************************************************************************/
 String extraer_info_sms(String posMem, String datoBuscado) {
   String anio = "",
-         confirmSms = "",
          datoEncontrado = "",
          dia = "",
          digitos = "",
@@ -480,14 +476,14 @@ String extraer_info_sms(String posMem, String datoBuscado) {
          hora = "",
          mes = "",
          numero = "",
-         signo = "",
-         texto = "";
+         signo = "",;
 
   /*********************************************************
     Comando de lectura de un SMS en la memoria:
       AT+CMGR=X    // X = numero de memoria a leer (1-30)
 
     Resultado:
+      AT+CMGR=X
       +CMGR: "REC READ","03624164072","","20/10/16,23:34:07-12"
       texto del mensaje
       OK
@@ -496,69 +492,67 @@ String extraer_info_sms(String posMem, String datoBuscado) {
   ultimoComandoEnviado = "AT+CMGR=" + posMem;
   SerialSim.println(ultimoComandoEnviado);
 
-  String primeraLinea = SerialSim.readStringUntil('\n');  //recibe AT+CMGR=...
-  String segundaLinea = SerialSim.readStringUntil('\n');
-  String terceraLinea = SerialSim.readStringUntil('\n');  //recibe texto del msje
-  SerialSim.readStringUntil('\n');                        //recibe salto de linea
-  String cuartaLinea = SerialSim.readStringUntil('\n');   //recibe OK
+  //String primeraLinea = SerialSim.readStringUntil('\n');  // AT+CMGR=...
+  SerialSim.readStringUntil('\n');                        // AT+CMGR=...
+  String datosMsje = SerialSim.readStringUntil('\n');     // +CMGR: "REC... ó "OK"
+  String texto = SerialSim.readStringUntil('\n');         // Texto del msje
+  SerialSim.readStringUntil('\n');                        // Salto de linea
+  String confirmacion = SerialSim.readStringUntil('\n');  // OK
 
-  primeraLinea = quitar_char_en_string(primeraLinea, '\r');
-  segundaLinea = quitar_char_en_string(segundaLinea, '\r');
-  terceraLinea = quitar_char_en_string(terceraLinea, '\r');
-  cuartaLinea = quitar_char_en_string(cuartaLinea, '\r');
+  //primeraLinea = quitar_char_en_string(primeraLinea, '\r');
+  datosMsje = quitar_char_en_string(datosMsje, '\r');
+  datosMsje = quitar_char_en_string(datosMsje, '\"');
+  texto = quitar_char_en_string(texto, '\r');
+  confirmacion = quitar_char_en_string(confirmacion, '\r');
 
-  if (segundaLinea.startsWith("OK")) {
-    datoEncontrado = "No se encuentra un SMS en esa dirección de memoria.";
+  if (datosMsje.startsWith("OK")) {
+    datoEncontrado = "ERROR: No se encuentra un SMS en esa dirección de memoria.";
 
   } else {
-    segundaLinea.remove(0, 7);
+    datosMsje.remove(0, 7);
 
-    estado = segundaLinea.substring(
-               segundaLinea.indexOf('"'),
-               segundaLinea.indexOf(',')
+    estado = datosMsje.substring(
+               datosMsje.indexOf('"'),
+               datosMsje.indexOf(',')
              );
-    numero = segundaLinea.substring(
-               segundaLinea.indexOf("\",\"") + 3,
-               segundaLinea.indexOf("\",\"\",\"")
+    numero = datosMsje.substring(
+               datosMsje.indexOf("\",\"") + 3,
+               datosMsje.indexOf("\",\"\",\"")
              );
-    anio = segundaLinea.substring(
-             segundaLinea.indexOf('/') - 2,
-             segundaLinea.indexOf('/')
+    anio = datosMsje.substring(
+             datosMsje.indexOf('/') - 2,
+             datosMsje.indexOf('/')
            );
-    mes = segundaLinea.substring(
-            segundaLinea.indexOf('/') + 1,
-            segundaLinea.indexOf('/') + 3
+    mes = datosMsje.substring(
+            datosMsje.indexOf('/') + 1,
+            datosMsje.indexOf('/') + 3
           );
-    dia = segundaLinea.substring(
-            segundaLinea.indexOf('/') + 4,
-            segundaLinea.indexOf('/') + 6
+    dia = datosMsje.substring(
+            datosMsje.indexOf('/') + 4,
+            datosMsje.indexOf('/') + 6
           );
-    hora = segundaLinea.substring(
-             segundaLinea.indexOf(':') - 2,
-             segundaLinea.indexOf(':') + 6
+    hora = datosMsje.substring(
+             datosMsje.indexOf(':') - 2,
+             datosMsje.indexOf(':') + 6
            );
-    signo = segundaLinea.substring(
-              segundaLinea.indexOf(':') + 6,
-              segundaLinea.indexOf(':') + 7
+    signo = datosMsje.substring(
+              datosMsje.indexOf(':') + 6,
+              datosMsje.indexOf(':') + 7
             );
-    digitos = segundaLinea.substring(
-                segundaLinea.indexOf(':') + 7,
-                segundaLinea.indexOf(':') + 9
+    digitos = datosMsje.substring(
+                datosMsje.indexOf(':') + 7,
+                datosMsje.indexOf(':') + 9
               );
     gmt = signo + String(digitos.toInt() / 4);
 
     fecha = dia + '/' + mes + '/' + anio;
-    texto = terceraLinea;
-    confirmSms = cuartaLinea;
 
     estado = quitar_char_en_string(estado, '\r');
     numero = quitar_char_en_string(numero, '\r');
     fecha = quitar_char_en_string(fecha, '\r');
-    texto = quitar_char_en_string(texto, '\r');
     gmt = quitar_char_en_string(gmt, '\r');
-    confirmSms = quitar_char_en_string(confirmSms, '\r');
 
-    if (confirmSms == "OK")  {
+    if (confirmacion == "OK")  {
       if (datoBuscado == "numero")  datoEncontrado = numero;
       else if (datoBuscado == "texto")  datoEncontrado = texto;
       else if (datoBuscado == "estado") datoEncontrado = estado;
