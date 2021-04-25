@@ -482,19 +482,18 @@ String extraer_info_sms(String posMem, String datoBuscado) {
   ultimoComandoEnviado = "AT+CMGR=" + posMem;
   SerialSim.println(ultimoComandoEnviado);
 
-  //String primeraLinea = SerialSim.readStringUntil('\n');  // AT+CMGR=...
   SerialSim.readStringUntil('\n');                        // AT+CMGR=...
   String datosMsje = SerialSim.readStringUntil('\n');     // +CMGR: "REC... ó "OK"
   String texto = SerialSim.readStringUntil('\n');         // Texto del msje
   SerialSim.readStringUntil('\n');                        // Salto de linea
   String confirmacion = SerialSim.readStringUntil('\n');  // OK
 
-  //primeraLinea = quitar_char_en_string(primeraLinea, '\r');
   datosMsje = quitar_char_en_string(datosMsje, '\r');
-  String extraerDatos = quitar_char_en_string(datosMsje, '\"');
+  datosMsje.replace("\"", "");
+  String extraerDatos = datosMsje;
   texto = quitar_char_en_string(texto, '\r');
   confirmacion = quitar_char_en_string(confirmacion, '\r');
-
+  
   if (extraerDatos.startsWith("OK")) {
     datoEncontrado = "ERROR: No se encuentra un SMS en esa dirección de memoria.";
 
@@ -507,17 +506,6 @@ String extraer_info_sms(String posMem, String datoBuscado) {
     String numero = extraerDatos.substring(0, extraerDatos.indexOf(','));   // 03624164072
     extraerDatos.remove(0, extraerDatos.indexOf(',') + 2);
 
-    /*
-        String anio = extraerDatos.substring(0, extraerDatos.indexOf('/'));     // 21
-        extraerDatos.remove(0, extraerDatos.indexOf('/') + 1);
-
-        String mes = extraerDatos.substring(0, extraerDatos.indexOf('/'));      // 04
-        extraerDatos.remove(0, extraerDatos.indexOf('/') + 1);
-
-        String dia = extraerDatos.substring(0, extraerDatos.indexOf(','));      // 23
-        extraerDatos.remove(0, extraerDatos.indexOf(',') + 1);
-    */
-    
     String fecha = extraerDatos.substring(0, extraerDatos.indexOf('/'));         // 21
     extraerDatos.remove(0, extraerDatos.indexOf('/') + 1);
 
@@ -526,16 +514,14 @@ String extraer_info_sms(String posMem, String datoBuscado) {
 
     fecha = extraerDatos.substring(0, extraerDatos.indexOf(',')) + '/' + fecha;  // 23/04/21
     extraerDatos.remove(0, extraerDatos.indexOf(',') + 1);
-    
-    String hora = extraerDatos.substring(0, 9);   // 00:12:17
+
+    String hora = extraerDatos.substring(0, 8);   // 00:12:17
     extraerDatos.remove(0, hora.length());
 
     String signo = extraerDatos.substring(0, 1);  // + o -
     extraerDatos.remove(0, 1);
 
-    //String digitos = extraerDatos;
-    String gmt = signo + String(extraerDatos.toInt() / 4);
-    //String fecha = dia + '/' + mes + '/' + anio;
+    String gmt = signo + String(extraerDatos.toInt() / 4);    // -3
 
     if (confirmacion == "OK")  {
       if (datoBuscado == "numero")  datoEncontrado = numero;
@@ -545,7 +531,8 @@ String extraer_info_sms(String posMem, String datoBuscado) {
       else if (datoBuscado == "fecha")  datoEncontrado = fecha;
       else if (datoBuscado == "gmt")  datoEncontrado = gmt;
       else if (datoBuscado == "todo") {
-        datoEncontrado = " Número: " + numero + '\n'
+        datoEncontrado = "Memoria: " + posMem + '\n'
+                         + " Número: " + numero + '\n'
                          + "  Fecha: " + fecha + '\n'
                          + "   Hora: " + hora + "  (GMT" + gmt + ")" + '\n'
                          + "Mensaje:" + '\n'
