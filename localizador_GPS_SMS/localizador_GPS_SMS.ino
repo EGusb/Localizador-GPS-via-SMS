@@ -68,22 +68,18 @@ SoftwareSerial SerialGps(PIN_GPS_RX, PIN_GPS_TX);   // Objeto Serial Gps
 
 
 void setup()  {
-  Serial.begin(9600);
-  SerialSim.begin(9600);
-  SerialGps.begin(9600);
+  Serial.begin(9600); SerialSim.begin(9600); SerialGps.begin(9600);
 
-  pinMode(PIN_LED, OUTPUT);
-  digitalWrite(PIN_LED, LOW);
-  esperar(2 * tiempoEspera);
-
-  Serial.println();
+  pinMode(PIN_LED, OUTPUT); digitalWrite(PIN_LED, LOW); // Se enciende el LED
+  esperar(2 * tiempoEspera); Serial.println();
+  
   Serial.println("Iniciando...");  Serial.println();
 
   // Hacer Setup del SIM
   setup_sim(); Serial.println();
 
   Serial.println("Entrando en Loop...");
-  digitalWrite(PIN_LED, HIGH);   // El Led se queda prendido durante el Setup
+  digitalWrite(PIN_LED, HIGH);   // Se apaga el LED
 }
 
 
@@ -108,7 +104,8 @@ void procesar_sim() {
 
 
 /**
-   Ejecutar un comando recibido desde el teclado de la PC
+   Ejecutar un comando recibido por consola (monitor serie).
+   Si se recibe información, se ejecuta el comando.
 */
 void procesar_usb() {
   String lecturaUsb = leer_usb_no_bloqueo();
@@ -551,8 +548,7 @@ String extraer_info_sms(String posMem, String datoBuscado) {
 ***********************************************************************************/
 void procesar_gps() {
   // This sketch displays information every time a new sentence is correctly encoded.
-  while (SerialGps.available() > 0)
-    ObjectGps.encode(SerialGps.read());
+  while (SerialGps.available() > 0) ObjectGps.encode(SerialGps.read());
 
   if (millis() - millisGps >= tiempoEspera) {
     millisGps = millis();
