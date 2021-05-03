@@ -46,9 +46,6 @@ unsigned long millisGps = 0,        // Variables de control de intervalos de tie
               millisFalloGps = 0,   // 
               millisLed = 0;        // 
 
-int estadoLed = HIGH;   // Estado del LED. Para NodeMCU, HIGH es apagado y LOW es encendido
-
-
 bool ultimoComandoOk = false,     // Control de comandos aplicados
      ultimaLecturaGpsOk = true;
 
@@ -123,7 +120,7 @@ String leer_sim_no_bloqueo() {
   String varSimNoBloq = "";
   if (SerialSim.available()) {
     varSimNoBloq = SerialSim.readStringUntil('\n');
-    varSimNoBloq = quitar_char_en_string(varSimNoBloq, '\r');
+    varSimNoBloq.replace("\r", "");
   }
   return varSimNoBloq;
 }
@@ -137,24 +134,9 @@ String leer_usb_no_bloqueo() {
   if (Serial.available()) {
     Serial.println();
     varUsbNoBloq = Serial.readStringUntil('\n');
-    varUsbNoBloq = quitar_char_en_string(varUsbNoBloq, '\r');
+    varUsbNoBloq.replace("\r", "");
   }
   return varUsbNoBloq;
-}
-
-
-/**
-   Quita del string pasado en el primer argumento,
-   el caracter enviado en el segundo argumento, todas las eces que aparezca.
-*/
-String quitar_char_en_string(String txtCorregir, char caracter) {
-  for (int i = 0; i < txtCorregir.length(); i++) {
-    if (txtCorregir.charAt(i) == caracter) {
-      txtCorregir.remove(i);
-      i--;
-    }
-  }
-  return txtCorregir;
 }
 
 
@@ -485,11 +467,10 @@ String extraer_info_sms(String posMem, String datoBuscado) {
   SerialSim.readStringUntil('\n');                        // Salto de linea
   String confirmacion = SerialSim.readStringUntil('\n');  // OK
 
-  datosMsje = quitar_char_en_string(datosMsje, '\r');
-  datosMsje.replace("\"", "");
+  datosMsje.replace("\r", ""); datosMsje.replace("\"", "");
   String extraerDatos = datosMsje;
-  texto = quitar_char_en_string(texto, '\r');
-  confirmacion = quitar_char_en_string(confirmacion, '\r');
+  texto.replace("\r", "");
+  confirmacion.replace("\r", "");
   
   if (extraerDatos.startsWith("OK")) {
     datoEncontrado = "ERROR: No se encuentra un SMS en esa dirección de memoria.";
@@ -644,8 +625,8 @@ void ejecutar_regularmente(void (*funcion)(), unsigned long intervalo, unsigned 
 /***********************************************************************************
 ***********************************************************************************/
 void cambiar_led() {
-  estadoLed = !estadoLed;
-  digitalWrite(PIN_LED, estadoLed);
+  bool estadoLed = digitalRead(PIN_LED);
+  digitalWrite(PIN_LED, !estadoLed);
 }
 /***********************************************************************************
 ***********************************************************************************/
