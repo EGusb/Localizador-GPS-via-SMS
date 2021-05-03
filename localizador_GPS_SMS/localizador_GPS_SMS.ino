@@ -2,11 +2,12 @@
 #include <TinyGPS++.h>
 #include <SoftwareSerial.h>
 
-const int PIN_LED =  LED_BUILTIN,         // Pin del Led integrado
-          PIN_SIM_RX = 4,                 // Pin de NodeMCU que recibe datos del módulo SIM
-          PIN_SIM_TX = 5,                 // Pin de NodeMCU que envía datos al módulo SIM
-          PIN_GPS_RX = 14,                // Pin de NodeMCU que recibe datos del módulo GPS
-          PIN_GPS_TX = 12;                // Pin de NodeMCU que envía datos al módulo GPS
+const int PIN_LED = LED_BUILTIN,  // Pin del Led integrado
+          PIN_SIM_RX = 4,         // Pin de NodeMCU que recibe datos del módulo SIM
+          PIN_SIM_TX = 5,         // Pin de NodeMCU que envía datos al módulo SIM
+          PIN_GPS_RX = 14,        // Pin de NodeMCU que recibe datos del módulo GPS
+          PIN_GPS_TX = 12,        // Pin de NodeMCU que envía datos al módulo GPS
+          TIMEZONE = -3;          // Huso horario (GMT -3 p/ Argentina)
 
 // Variables globales
 String ultimoComandoEnviado = "",         // Se usa para mostrar errores
@@ -30,9 +31,9 @@ String ultimoComandoEnviado = "",         // Se usa para mostrar errores
        mesGps = "",
        anioGps = "",
        horaGps = "",
-       horaCompletaGps = "",
        minutosGps = "",
        segundosGps = "",
+       horaCompletaGps = "",  // Hora + Minutos + Segundos
        longitudGps = "",
        latitudGps = "",
        satelitesGps = "";
@@ -42,11 +43,10 @@ unsigned int tiempoEspera = 500,    // Utilizada mayormente en la función esper
 
 
 unsigned long millisGps = 0,        // Variables de control de intervalos de tiempo
-              millisFalloGps = 0,
-              millisLed = 0;
+              millisFalloGps = 0,   // 
+              millisLed = 0;        // 
 
-int husoHorarioGmt = -3,    // Huso horario según ubicación requerida (GMT -3 p/ Argentina)
-    estadoLed = HIGH;       // Estado del LED. Para NodeMCU, HIGH es apagado y LOW es encendido
+int estadoLed = HIGH;   // Estado del LED. Para NodeMCU, HIGH es apagado y LOW es encendido
 
 
 bool ultimoComandoOk = false,     // Control de comandos aplicados
@@ -583,7 +583,7 @@ void leer_info_gps() {
       ObjectGps.date.month(),
       ObjectGps.date.year()
     );
-    adjustTime(husoHorarioGmt * 3600);     //Agrega (+) o quita (-) segundos para zona horaria
+    adjustTime(TIMEZONE * 3600);     //Agrega (+) o quita (-) segundos para zona horaria
 
     // Leer y formatear los valores de tiempo y fecha actuales
     horaGps = String(hour()); if (horaGps.length() <= 1) horaGps = "0" + horaGps;
