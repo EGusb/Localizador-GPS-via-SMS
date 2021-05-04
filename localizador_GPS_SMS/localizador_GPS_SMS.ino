@@ -87,7 +87,8 @@ void loop() {
 
   if (millis() - millisLed >= 250) {   // El Led titila cada 250ms en Loop
     millisLed = millis();
-    cambiar_led();
+    bool estadoLed = digitalRead(PIN_LED);
+    digitalWrite(PIN_LED, !estadoLed);
   }
 }
 
@@ -371,7 +372,7 @@ void setup_sim() {
     "AT+CREG?",           // Registro en la red
     "AT+COPS?",           // Selección de Operador
     "AT+CMGF=1",          // Formato de SMS. 1 = modo texto
-    "AT+CNMI=2,1,0,0,0",  // Indicación para nuevo SMS
+    "AT+CNMI=2,1,0,0,0",  // Indicación para configurar SMS recibidos
     "AT+CMEE=2",          // Modo de mostrar los errores
   };
   int cantComandos = sizeof(comandos) / sizeof(comandos[0]);
@@ -386,7 +387,6 @@ void setup_sim() {
     esperar_confirmacion("OK", tiempoTimeout);
     esperar(tiempoEspera);
   }
-  //procesar_sim();
   ultimoComandoEnviado = "Hacer Setup";
   Serial.println("Setup del módulo SIM finalizado.");
   ultimoComandoOk = true;
@@ -395,7 +395,7 @@ void setup_sim() {
 
 
 /**
-
+   Analizar un SMS recibido y verificar si tiene algún comando.
 */
 void sms_recibido(String textoSms) {
   /**
@@ -405,11 +405,7 @@ void sms_recibido(String textoSms) {
   Serial.println("¡Se ha recibido un nuevo SMS!");
 
   // Se busca la posición de memoria en la que está el nuevo SMS
-  String posMem = "";
-  for (int i = 1; isDigit(textoSms.charAt(textoSms.length() - i)); i++) {
-    posMem = String(textoSms.charAt(textoSms.length() - i))
-             + posMem;
-  }
+  String posMem = textoSms.substring(textoSms.indexOf(',') + 1);
 
   String num = extraer_info_sms(posMem, "numero"),
          txt = extraer_info_sms(posMem, "texto"),
@@ -445,8 +441,12 @@ void sms_recibido(String textoSms) {
 
   esperar(tiempoEspera);
 }
-/***********************************************************************************
-***********************************************************************************/
+
+
+/**
+    Obtener datos de un SMS alojado en la memoria del módulo SIM800L.
+    Datos posibles a buscar: estado, numero, texto, fecha, hora, gmt, todo
+*/
 String extraer_info_sms(String posMem, String datoBuscado) {
   String datoEncontrado = "";
 
@@ -470,7 +470,7 @@ String extraer_info_sms(String posMem, String datoBuscado) {
   SerialSim.readStringUntil('\n');                        // Salto de linea
   String confirmacion = SerialSim.readStringUntil('\n');  // OK
 
-  datosMsje.replace("\r", ""); datosMsje.replace("\"", "");
+  datosMsje.replace("\r", ""); datosMsje.replace("\"", "");  // Se quita el CR y las comillas
   String extraerDatos = datosMsje;
   texto.replace("\r", "");
   confirmacion.replace("\r", "");
@@ -499,7 +499,7 @@ String extraer_info_sms(String posMem, String datoBuscado) {
     String hora = extraerDatos.substring(0, 8);   // 00:12:17
     extraerDatos.remove(0, hora.length());
 
-    String signo = extraerDatos.substring(0, 1);  // + o -
+    String signo = extraerDatos.substring(0, 1);  // Signo de la zona horaria (+ o -)
     extraerDatos.remove(0, 1);
 
     String gmt = signo + String(extraerDatos.toInt() / 4);    // -3
@@ -526,12 +526,13 @@ String extraer_info_sms(String posMem, String datoBuscado) {
 
   return datoEncontrado;
 }
-/***********************************************************************************
-************************************************************************************
-************************************************************************************
-***********************************************************************************/
+
+
+/**
+    Leer el módulo GPS cada cierto tiempo, mientras haya información a leer.
+    Si los cables están mal conectados, arroja un error por consola.
+*/
 void procesar_gps() {
-  // This sketch displays information every time a new sentence is correctly encoded.
   while (SerialGps.available() > 0) ObjectGps.encode(SerialGps.read());
 
   if (millis() - millisGps >= tiempoEspera) {
@@ -539,19 +540,24 @@ void procesar_gps() {
     leer_info_gps();
   }
 
+  // Detectar si está bien conectado el módulo GPS
   if (millis() - millisFalloGps >= 5000 && ObjectGps.charsProcessed() < 10) {
     millisFalloGps = millis();
     Serial.println("No se detectó el GPS: chequear cableado");
   }
 }
-/***********************************************************************************
-***********************************************************************************/
+
+
+/**
+   Leer y formatear la información del módulo GPS.
+   Esta información se guarda en la variables globales respectivas.
+*/
 void leer_info_gps() {
   satelitesGps = String(ObjectGps.satellites.value());
   latitudGps = String(ObjectGps.location.lat(), 6);
   longitudGps = String(ObjectGps.location.lng(), 6);
 
-  bool datoUtil = satelitesGps != "0";
+  bool datoUtil = satelitesGps != "0";    // Sin conexión a satélites no hay datos para leer
 
   // Poner en hora
   if (ObjectGps.time.isValid() && ObjectGps.date.isValid() && datoUtil) {
@@ -592,8 +598,13 @@ void leer_info_gps() {
     ultimaLecturaGpsOk = false;
   }
 }
-/***********************************************************************************
-***********************************************************************************/
+
+
+/**
+   Organiza la información de las variables globales del GPS para que se lean mejor.
+   Devuelve un String con toda esta información.
+   Este String incluye, al final, un link de Google Maps con la ubicación obtenida.
+*/
 String mostrar_info_gps() {
   String resultadoGps = "";
 
@@ -615,52 +626,53 @@ String mostrar_info_gps() {
   */
   return resultadoGps;
 }
-/***********************************************************************************
-************************************************************************************
-************************************************************************************
-***********************************************************************************/
-void cambiar_led() {
-  bool estadoLed = digitalRead(PIN_LED);
-  digitalWrite(PIN_LED, !estadoLed);
-}
-/***********************************************************************************
-***********************************************************************************/
+
+
+/**
+   Leer los miliVolts que llegan al módulo SIM.
+   También estima la carga restante de batería.
+*/
 String leer_bateria() {
   SerialSim.println("AT+CBC");
   //SerialSim.readStringUntil('\n');    //Recibe "AT+CBC"
   String lecturaDatos = leer_sim_no_bloqueo();
 
   // Ejemplo de comando recibido:   +CBC: 0,98,4186
-  while (!(lecturaDatos.indexOf("+CBC:") >= 0)) {
-    lecturaDatos = leer_sim_no_bloqueo();
-  }
-  SerialSim.readStringUntil('\n');    //Recibe "OK"
-  String porcentaje = lecturaDatos.substring(lecturaDatos.indexOf(',') + 1,
-                      lecturaDatos.length() - 5);
-  String milivolts = "";
+  while (!(lecturaDatos.indexOf("+CBC:") >= 0)) lecturaDatos = leer_sim_no_bloqueo();
 
-  for (int i = 1; isDigit(lecturaDatos.charAt(lecturaDatos.length() - i)); i++) {
-    milivolts = String(lecturaDatos.charAt(lecturaDatos.length() - i))
-                + milivolts;
-  }
+  SerialSim.readStringUntil('\n');    //Recibe "OK"
+  lecturaDatos.remove(0, lecturaDatos.indexOf(',') + 1);
+  String porcentaje = lecturaDatos.substring(0, lecturaDatos.indexOf(',') + 1);
+
+  lecturaDatos.remove(0, lecturaDatos.indexOf(',') + 1);
+  String milivolts = lecturaDatos;
 
   lecturaDatos = "Carga: " + porcentaje + '%' + '\n'
                  + "Voltaje: " + milivolts + " mV";
   return lecturaDatos;
 }
-/***********************************************************************************
-***********************************************************************************/
+
+
+/**
+   Generar un link de Google Maps que muestre el
+   recorrido hecho por el GPS luego de cierto tiempo.
+*/
 String camino_recorrido() {
   /* Ejemplo de link en Google Maps
     https://www.google.com/maps/dir/-27.44849,-58.9963085/-27.51111,-59.00000/data=!4m2!4m1!3e2
 
     data=!4m2!4m1!3e2     para ver los puntos como trayecto a pie
   */
-
-
+  return "";
 }
-/***********************************************************************************
-***********************************************************************************/
+
+
+/**
+   Chequear si el módulo SIM está conectado a la red 2G.
+   Devuelve TRUE si está coenctado, y FALSE si no.
+   Puede llegar a responder erróneamente si no está conectado, por lo que se agregó
+   un control de timeout que escapa del bucle while si tarda mucho en responder.
+*/
 bool sim_esta_conectado() {
   String lecturaDatos = "";
   unsigned long millisPrevio = millis();
@@ -675,13 +687,18 @@ bool sim_esta_conectado() {
   bool estado = lecturaDatos.endsWith("1");
   return estado;
 }
-/***********************************************************************************
-***********************************************************************************/
+
+
+/**
+   Retornar el valor de potencia de conexión a la red que recibe el módulo SIM.
+   Entre 10 y 30 son valores aceptables para que trabaje normalmente.
+*/
 String potencia_red_sim() {
   String lecturaDatos = "";
   unsigned long millisPrevio = millis();
   SerialSim.println("AT+CSQ");
 
+  // Esperar respuesta. Ejemplo:  +CSQ: 15,0
   while (millis() - millisPrevio <= tiempoTimeout) {
     lecturaDatos = leer_sim_no_bloqueo();
     if (lecturaDatos.startsWith("+CSQ:")) break;
@@ -694,8 +711,12 @@ String potencia_red_sim() {
                     );
   return potencia;
 }
-/***********************************************************************************
-***********************************************************************************/
+
+
+/**
+   Setear al módulo SIM en modo SLEEP. En este modo no se reciben ni se envían SMS.
+   Este modo consume menos batería que el modo ACTIVE.
+*/
 void dormir_sim() {
   String lecturaDatos = "";
   int intentos = 5, contador = 0;
@@ -717,8 +738,12 @@ void dormir_sim() {
     else Serial.println("No se pudo activar el modo SLEEP.");
   }
 }
-/***********************************************************************************
-***********************************************************************************/
+
+
+/**
+   Setear al módulo SIM en modo ACTIVE. En este modo se puede enviar y recibir SMS.
+   Este modo consume más batería que el modo SLEEP.
+*/
 void despertar_sim() {
   String lecturaDatos = "";
   int intentos = 5, contador = 0;
@@ -741,9 +766,13 @@ void despertar_sim() {
     else Serial.println("No se pudo activar el módulo SIM.");
   }
 }
-/***********************************************************************************
-***********************************************************************************/
-bool sim_dormida() {   // Devuelve TRUE si el módulo SIM está en CFUN = 0 (sleep)
+
+
+/**
+   Retornar TRUE si el módulo SIM está en modo SLEEP, y FALSE si no.
+   Esta función se utiliza para controlar el estado actual de conexión a la red.
+*/
+bool sim_dormida() {
   String lecturaDatos = "";
   unsigned long millisPrevio = millis();
   SerialSim.println("AT+CFUN?");
