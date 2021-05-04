@@ -10,7 +10,7 @@ const int PIN_LED = LED_BUILTIN,  // Pin del Led integrado
           TIMEZONE = -3;          // Huso horario (GMT -3 p/ Argentina)
 
 // Variables globales
-String ultimoComandoEnviado = "",         // Se usa para mostrar errores
+String ultimoComandoEnviado = "",         // Se usa para mostrar errores con comandos
 
        // Comandos específicos
        cmdEnviarSms = "SMS1",             // Enviar un SMS desde el módulo SIM800L
@@ -43,8 +43,8 @@ unsigned int tiempoEspera = 500,    // Utilizada mayormente en la función esper
 
 
 unsigned long millisGps = 0,        // Variables de control de intervalos de tiempo
-              millisFalloGps = 0,   // 
-              millisLed = 0;        // 
+              millisFalloGps = 0,   //
+              millisLed = 0;        //
 
 bool ultimoComandoOk = false,     // Control de comandos aplicados
      ultimaLecturaGpsOk = true;
@@ -69,7 +69,7 @@ void setup()  {
 
   pinMode(PIN_LED, OUTPUT); digitalWrite(PIN_LED, LOW); // Se enciende el LED
   esperar(2 * tiempoEspera); Serial.println();
-  
+
   Serial.println("Iniciando...");  Serial.println();
 
   // Hacer Setup del SIM
@@ -84,9 +84,12 @@ void loop() {
   procesar_sim();
   procesar_usb();
   procesar_gps();
-  ejecutar_regularmente(cambiar_led, 250, &millisLed);   // El Led titila cada 250ms en Loop
-}
 
+  if (millis() - millisLed >= 250) {   // El Led titila cada 250ms en Loop
+    millisLed = millis();
+    cambiar_led();
+  }
+}
 
 /**
    Leer si hay información proveniente del módulo SIM800L.
@@ -323,7 +326,7 @@ void esperar_confirmacion(String comandoEsperado, unsigned long tiempoDeEspera) 
     if (millis() - millisPrevio >= tiempoDeEspera)  {
       ultimoComandoOk = false;
       Serial.println("(Timeout) No se recibió confirmación del siguiente comando: "
-                     + ultimoComandoEnviado + '\n');
+                     + ultimoComandoEnviado);
       break;
 
     } else {
@@ -331,13 +334,13 @@ void esperar_confirmacion(String comandoEsperado, unsigned long tiempoDeEspera) 
 
       if (lectSim.length() > 0) {
         if (lectSim.startsWith(comandoEsperado)) {
-          Serial.println("(*)   " + lectSim + '\n');
+          Serial.println("(*)   " + lectSim);
           ultimoComandoOk = true;
           break;
 
         } else if (lectSim.indexOf("ERROR") >= 0) {
-          Serial.print("Hubo un error al procesar el siguiente comando: "
-                       + ultimoComandoEnviado + '\n');
+          Serial.println("Hubo un error al procesar el siguiente comando: "
+                         + ultimoComandoEnviado);
           break;
 
         } else  Serial.println("***   " + lectSim);
@@ -383,9 +386,9 @@ void setup_sim() {
     esperar_confirmacion("OK", tiempoTimeout);
     esperar(tiempoEspera);
   }
-
+  //procesar_sim();
   ultimoComandoEnviado = "Hacer Setup";
-  Serial.println("Setup del módulo SIM finalizado." + '\n');
+  Serial.println("Setup del módulo SIM finalizado.");
   ultimoComandoOk = true;
   digitalWrite(PIN_LED, HIGH);
 }
@@ -412,7 +415,7 @@ void sms_recibido(String textoSms) {
          txt = extraer_info_sms(posMem, "texto"),
          todo = extraer_info_sms(posMem, "todo");
 
-  Serial.println(todo + '\n');   // Se imprime el mensaje con toda la información
+  Serial.println(todo);   // Se imprime el mensaje con toda la información
 
   // Se comprueba si el texto contiene algún comando
   if (txt.equalsIgnoreCase(cmdMarco)) {
@@ -471,7 +474,7 @@ String extraer_info_sms(String posMem, String datoBuscado) {
   String extraerDatos = datosMsje;
   texto.replace("\r", "");
   confirmacion.replace("\r", "");
-  
+
   if (extraerDatos.startsWith("OK")) {
     datoEncontrado = "ERROR: No se encuentra un SMS en esa dirección de memoria.";
 
@@ -615,14 +618,6 @@ String mostrar_info_gps() {
 /***********************************************************************************
 ************************************************************************************
 ************************************************************************************
-***********************************************************************************/
-void ejecutar_regularmente(void (*funcion)(), unsigned long intervalo, unsigned long *refPrevia) {
-  if (millis() - *refPrevia >= intervalo) {
-    *refPrevia = millis();
-    (*funcion)();
-  }
-}
-/***********************************************************************************
 ***********************************************************************************/
 void cambiar_led() {
   bool estadoLed = digitalRead(PIN_LED);
