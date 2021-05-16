@@ -264,7 +264,7 @@ void ejecutar_comando_usb(String comando) {
     Serial.println("Chequeando estado de la red SIM...");
     if (sim_dormida()) Serial.println("El módulo SIM está en modo SLEEP.");
     else Serial.println("El módulo SIM está en modo ACTIVE.");
-  
+
   } else if (comando == cmdLeerRecorrido) {
     Serial.println("Leyendo el camino recorrido...");
     String recorrido = camino_recorrido();
@@ -449,6 +449,13 @@ void sms_recibido(String textoSms) {
   } else if (txt == cmdBateria) {
     String txtEnviar = leer_bateria();
     enviar_sms(num, txtEnviar);
+
+  } else if (txt == cmdLeerRecorrido) {
+    Serial.println("Leyendo el camino recorrido...");
+    String recorrido = camino_recorrido();
+    Serial.println(recorrido);
+    enviar_sms(num, recorrido);
+
   }
 
   esperar(tiempoEspera);
@@ -697,11 +704,11 @@ String camino_recorrido() {
   */
   String resultado = "https://www.google.com/maps/dir/";
 
-  for (int i = CANT_COORD - 1; i > 0; i--) {
+  for (int i = CANT_COORD - 1; i >= 0; i--) {
     resultado += caminoRecorrido[i] + '/';
   }
   resultado += "data=!4m2!4m1!3e2";
-  
+
   return resultado;
 }
 
