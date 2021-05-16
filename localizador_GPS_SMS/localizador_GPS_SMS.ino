@@ -2,12 +2,13 @@
 #include <TinyGPS++.h>
 #include <SoftwareSerial.h>
 
-const int PIN_LED = LED_BUILTIN,  // Pin del Led integrado
-          PIN_SIM_RX = 4,         // Pin de NodeMCU que recibe datos del módulo SIM
-          PIN_SIM_TX = 5,         // Pin de NodeMCU que envía datos al módulo SIM
-          PIN_GPS_RX = 14,        // Pin de NodeMCU que recibe datos del módulo GPS
-          PIN_GPS_TX = 12,        // Pin de NodeMCU que envía datos al módulo GPS
-          TIMEZONE = -3;          // Huso horario (GMT -3 p/ Argentina)
+const int PIN_LED = LED_BUILTIN, // Pin del Led integrado
+          PIN_SIM_RX = 4,        // Pin de NodeMCU que recibe datos del módulo SIM
+          PIN_SIM_TX = 5,        // Pin de NodeMCU que envía datos al módulo SIM
+          PIN_GPS_RX = 14,       // Pin de NodeMCU que recibe datos del módulo GPS
+          PIN_GPS_TX = 12,       // Pin de NodeMCU que envía datos al módulo GPS
+          TIMEZONE = -3,         // Huso horario (GMT -3 p/ Argentina)
+          CANT_COORD = 5;        // Nº de coordenadas que se guardan para dibujar el recorrido
 
 // Variables globales
 String ultimoComandoEnviado = "",         // Se usa para mostrar errores con comandos
@@ -24,6 +25,7 @@ String ultimoComandoEnviado = "",         // Se usa para mostrar errores con com
        cmdDormirSim = "Dormir SIM",       // Cambiar el modo actual del SIM800L al modo SLEEP
        cmdDespertarSim = "Despertar SIM", // Cambiar el modo actual del SIM800L al modo ACTIVE
        cmdEstadoRedSim = "Estado?",       // Saber el modo actual del SIM800L
+       cmdLeerRecorrido = "Recorrido1",   // Leer el recorrido hecho hasta ahora
 
        // Variables para guardar datos GPS
        fechaGps = "",
@@ -36,15 +38,18 @@ String ultimoComandoEnviado = "",         // Se usa para mostrar errores con com
        horaCompletaGps = "",  // Hora + Minutos + Segundos
        longitudGps = "",
        latitudGps = "",
-       satelitesGps = "";
+       satelitesGps = "",
+       caminoRecorrido[CANT_COORD];  // Array que guarda las últimas posiciones GPS obtenidas
 
-unsigned int tiempoEspera = 500,    // Utilizada mayormente en la función esperar()
-             tiempoTimeout = 5000;  // Para esperar confirmación de comandos y otros
+unsigned int tiempoEspera = 500,   // Utilizada mayormente en la función esperar() (ms)
+             tiempoTimeout = 5000, // Intervalo de espera de confirmación de comandos y otros (ms)
+             esperaRecorrido = 1;  // Intervalo de actualización del recorrido hecho (minutos)
 
 
 unsigned long millisGps = 0,        // Variables de control de intervalos de tiempo
               millisFalloGps = 0,   //
-              millisLed = 0;        //
+              millisLed = 0,
+              millisRecorrido = 0;
 
 bool ultimoComandoOk = false,     // Control de comandos aplicados
      ultimaLecturaGpsOk = true;
@@ -259,6 +264,12 @@ void ejecutar_comando_usb(String comando) {
     Serial.println("Chequeando estado de la red SIM...");
     if (sim_dormida()) Serial.println("El módulo SIM está en modo SLEEP.");
     else Serial.println("El módulo SIM está en modo ACTIVE.");
+  
+  } else if (comando == cmdLeerRecorrido) {
+    Serial.println("Leyendo el camino recorrido...");
+    String recorrido = camino_recorrido();
+    //Serial.println("Link de Google Maps:");
+    Serial.println(recorrido);
   }
 
   // Si no se recibe ningún comando propio, se envía igualmente el string al SIM800L
@@ -385,6 +396,7 @@ void setup_sim() {
     ultimoComandoEnviado = comandos[i];
     SerialSim.println(ultimoComandoEnviado);
     esperar_confirmacion("OK", tiempoTimeout);
+    Serial.println();
     esperar(tiempoEspera);
   }
   ultimoComandoEnviado = "Hacer Setup";
@@ -533,11 +545,17 @@ String extraer_info_sms(String posMem, String datoBuscado) {
     Si los cables están mal conectados, arroja un error por consola.
 */
 void procesar_gps() {
+  // Codificar el objeto GPS para traducir la información cruda del módulo GPS
   while (SerialGps.available() > 0) ObjectGps.encode(SerialGps.read());
 
   if (millis() - millisGps >= tiempoEspera) {
     millisGps = millis();
     leer_info_gps();
+  }
+
+  if (millis() - millisRecorrido >= (esperaRecorrido * 60000)) {
+    millisRecorrido = millis();
+    actualizar_recorrido();
   }
 
   // Detectar si está bien conectado el módulo GPS
@@ -557,9 +575,9 @@ void leer_info_gps() {
   latitudGps = String(ObjectGps.location.lat(), 6);
   longitudGps = String(ObjectGps.location.lng(), 6);
 
-  bool datoUtil = satelitesGps != "0";    // Sin conexión a satélites no hay datos para leer
+  bool datoUtil = (satelitesGps != "0");    // Sin conexión a satélites no hay datos para leer
 
-  // Poner en hora
+  // Si son válidos los datos del GPS, ajustarlos a la zona horaria
   if (ObjectGps.time.isValid() && ObjectGps.date.isValid() && datoUtil) {
     setTime(
       ObjectGps.time.hour(),
@@ -642,7 +660,7 @@ String leer_bateria() {
 
   SerialSim.readStringUntil('\n');    //Recibe "OK"
   lecturaDatos.remove(0, lecturaDatos.indexOf(',') + 1);
-  String porcentaje = lecturaDatos.substring(0, lecturaDatos.indexOf(',') + 1);
+  String porcentaje = lecturaDatos.substring(0, lecturaDatos.indexOf(','));
 
   lecturaDatos.remove(0, lecturaDatos.indexOf(',') + 1);
   String milivolts = lecturaDatos;
@@ -654,16 +672,37 @@ String leer_bateria() {
 
 
 /**
+   Actualizar el array que contiene las últimas posiciones guardadas.
+*/
+void actualizar_recorrido() {
+  if (ultimaLecturaGpsOk) {
+    for (int i = CANT_COORD - 1; i > 0; i--) {
+      caminoRecorrido[i] = caminoRecorrido[i - 1];
+    }
+    caminoRecorrido[0] = latitudGps + ',' + longitudGps;
+  }
+}
+
+
+/**
    Generar un link de Google Maps que muestre el
    recorrido hecho por el GPS luego de cierto tiempo.
 */
 String camino_recorrido() {
-  /* Ejemplo de link en Google Maps
+  /*
+    Ejemplo de link en Google Maps
     https://www.google.com/maps/dir/-27.44849,-58.9963085/-27.51111,-59.00000/data=!4m2!4m1!3e2
 
     data=!4m2!4m1!3e2     para ver los puntos como trayecto a pie
   */
-  return "";
+  String resultado = "https://www.google.com/maps/dir/";
+
+  for (int i = CANT_COORD - 1; i > 0; i--) {
+    resultado += caminoRecorrido[i] + '/';
+  }
+  resultado += "data=!4m2!4m1!3e2";
+  
+  return resultado;
 }
 
 
