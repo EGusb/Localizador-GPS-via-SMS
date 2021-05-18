@@ -304,15 +304,15 @@ void enviar_sms(String numSms, String txtSms) {
   SerialSim.write(26);      // Caracter necesario para enviar SMS
   ultimoComandoEnviado = "Enviar SMS";
 
-  // Se espera hasta 1 minuto la confirm. del envío del SMS
+  // Se espera hasta 1 minuto la confirmación del envío del SMS
   esperar_confirmacion("+CMGS:", 60000);
   unsigned long finCronometro = millis();
 
   if (ultimoComandoOk)  {
     Serial.println("MENSAJE ENVIADO CORRECTAMENTE.");
-    Serial.println("Tiempo tardado: "
-                   + String((finCronometro - iniCronometro) / 1000)
-                   + " segundos");
+    Serial.println("Tiempo tardado: " +
+                   String((finCronometro - iniCronometro) / 1000) +
+                   " segundos");
 
   } else  Serial.println("MENSAJE NO ENVIADO. HUBO UN ERROR.");
 
@@ -328,6 +328,7 @@ void enviar_sms(String numSms, String txtSms) {
     Mientras la función esté esperando el comando, se imprimirán tres asteriscos
     al principio de cada renglón de la consola, por cada línea que se imprime,
     para que la persona que lee la consola sepa que aún se está esperando la confirmación.
+    Al recibir el string esperado, se reemplazan los 3 asteriscos por "(*)"
 */
 void esperar_confirmacion(String comandoEsperado, unsigned long tiempoDeEspera) {
   String lectSim = "";
@@ -376,9 +377,9 @@ void reset_arduino() {
    el estado general del módulo SIM.
 */
 void setup_sim() {
-  String comandos[] = {   // Comandos que se van a ejecutar
+  String comandos[] = {   // Comandos que se van a ejecutar:
     "AT",                 // Chequear comunicación entre SIM y Arduino
-    "AT+CFUN=1",          // Modo de funcionalidad
+    "AT+CFUN=1",          // Modo de funcionalidad. 1 = ACTIVE, 0 = SLEEP
     "AT+CSQ",             // Calidad de señal. 10 a 30 ideal
     "AT+CREG?",           // Registro en la red
     "AT+COPS?",           // Selección de Operador
@@ -386,6 +387,8 @@ void setup_sim() {
     "AT+CNMI=2,1,0,0,0",  // Indicación para configurar SMS recibidos
     "AT+CMEE=2",          // Modo de mostrar los errores
   };
+
+  // Forma de calcular la cantidad de elementos de un Array
   int cantComandos = sizeof(comandos) / sizeof(comandos[0]);
 
   Serial.println("Iniciando setup del módulo SIM...");
@@ -423,7 +426,7 @@ void sms_recibido(String textoSms) {
          txt = extraer_info_sms(posMem, "texto"),
          todo = extraer_info_sms(posMem, "todo");
 
-  Serial.println(todo);   // Se imprime el mensaje con toda la información
+  Serial.println(todo); Serial.println();   // Se imprime el mensaje con toda la información
 
   // Se comprueba si el texto contiene algún comando
   if (txt.equalsIgnoreCase(cmdMarco)) {
@@ -442,8 +445,8 @@ void sms_recibido(String textoSms) {
     digitalWrite(PIN_LED, HIGH);
 
   } else if (txt == cmdReset) {
-    Serial.println("Reiniciando Arduino...");
     enviar_sms(num, "Reiniciando Arduino");
+    Serial.println("Reiniciando Arduino...");
     reset_arduino();
 
   } else if (txt == cmdBateria) {
@@ -475,7 +478,7 @@ String extraer_info_sms(String posMem, String datoBuscado) {
 
     Resultado:
       AT+CMGR=X
-      +CMGR: "REC READ","03624164072","","20/10/16,23:34:07-12"
+      +CMGR: "REC READ","03624164072","","20/10/16,23:34:07-12"  // -12 en cuartos de hora
       texto del mensaje
       OK
   *********************************************************/
@@ -501,18 +504,18 @@ String extraer_info_sms(String posMem, String datoBuscado) {
     extraerDatos.remove(0, extraerDatos.indexOf(' ') + 1);
 
     String estado = extraerDatos.substring(0, extraerDatos.indexOf(','));   // REC READ
-    extraerDatos.remove(0, extraerDatos.indexOf(',') + 1);
+    extraerDatos.remove(0, extraerDatos.indexOf(',') + 1);  // Quitar lo leído
 
     String numero = extraerDatos.substring(0, extraerDatos.indexOf(','));   // 03624164072
     extraerDatos.remove(0, extraerDatos.indexOf(',') + 2);
 
-    String fecha = extraerDatos.substring(0, extraerDatos.indexOf('/'));         // 21
+    String fecha = extraerDatos.substring(0, extraerDatos.indexOf('/'));         // 99
     extraerDatos.remove(0, extraerDatos.indexOf('/') + 1);
 
-    fecha = extraerDatos.substring(0, extraerDatos.indexOf('/')) + '/' + fecha;  // 04/21
+    fecha = extraerDatos.substring(0, extraerDatos.indexOf('/')) + '/' + fecha;  // 12/99
     extraerDatos.remove(0, extraerDatos.indexOf('/') + 1);
 
-    fecha = extraerDatos.substring(0, extraerDatos.indexOf(',')) + '/' + fecha;  // 23/04/21
+    fecha = extraerDatos.substring(0, extraerDatos.indexOf(',')) + '/' + fecha;  // 31/12/99
     extraerDatos.remove(0, extraerDatos.indexOf(',') + 1);
 
     String hora = extraerDatos.substring(0, 8);   // 00:12:17
@@ -634,21 +637,15 @@ String mostrar_info_gps() {
   String resultadoGps = "";
 
   if (ultimaLecturaGpsOk) {
-    resultadoGps = "Coord:  " + latitudGps + ',' + longitudGps + '\n'
-                   + "Fecha:  " + fechaGps + '\n'
-                   + " Hora:  " + horaCompletaGps + '\n'
-                   + "  Sat:  " + satelitesGps + '\n' + '\n'
-                   + "https://www.google.com/maps/search/"
-                   + latitudGps + ',' + longitudGps;
-  }
-  else resultadoGps = "El GPS no tiene datos utiles.";
+    resultadoGps = "Coord: " + latitudGps + ',' + longitudGps + '\n' +
+                   "Fecha: " + fechaGps + '\n' +
+                   "Hora: " + horaCompletaGps + '\n' +
+                   "Sat: " + satelitesGps + '\n' + '\n' +
+                   "https://www.google.com/maps/search/" +
+                   latitudGps + ',' + longitudGps;
 
-  /**
-      Ejemplo de link en Google Maps
-      https://www.google.com/maps/search/-27.44849,-58.9963085
+  } else resultadoGps = "El GPS no tiene datos utiles.";
 
-      data=!4m2!4m1!3e2     para asignar varis puntos y verlos como trayecto a pie
-  */
   return resultadoGps;
 }
 
@@ -715,7 +712,7 @@ String camino_recorrido() {
 
 /**
    Chequear si el módulo SIM está conectado a la red 2G.
-   Devuelve TRUE si está coenctado, y FALSE si no.
+   Devuelve TRUE si está conectado, y FALSE si no.
    Puede llegar a responder erróneamente si no está conectado, por lo que se agregó
    un control de timeout que escapa del bucle while si tarda mucho en responder.
 */
