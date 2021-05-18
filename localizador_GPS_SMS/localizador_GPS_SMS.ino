@@ -8,7 +8,7 @@ const int PIN_LED = LED_BUILTIN, // Pin del Led integrado
           PIN_GPS_RX = 14,       // Pin de NodeMCU que recibe datos del módulo GPS
           PIN_GPS_TX = 12,       // Pin de NodeMCU que envía datos al módulo GPS
           TIMEZONE = -3,         // Huso horario (GMT -3 p/ Argentina)
-          CANT_COORD = 5;        // Nº de coordenadas que se guardan para dibujar el recorrido
+          CANT_COORD = 10;       // Nº de coordenadas que se guardan para dibujar el recorrido
 
 // Variables globales
 String ultimoComandoEnviado = "",         // Se usa para mostrar errores con comandos
@@ -129,7 +129,7 @@ String leer_sim_no_bloqueo() {
   String varSimNoBloq = "";
   if (SerialSim.available()) {
     varSimNoBloq = SerialSim.readStringUntil('\n');
-    varSimNoBloq.replace("\r", "");
+    varSimNoBloq.replace("\r", "");   // Quitar retorno de carro del string
   }
   return varSimNoBloq;
 }
@@ -143,7 +143,7 @@ String leer_usb_no_bloqueo() {
   if (Serial.available()) {
     Serial.println();
     varUsbNoBloq = Serial.readStringUntil('\n');
-    varUsbNoBloq.replace("\r", "");
+    varUsbNoBloq.replace("\r", "");   // Quitar retorno de carro del string
   }
   return varUsbNoBloq;
 }
@@ -228,8 +228,8 @@ void ejecutar_comando_usb(String comando) {
       String opcionElegida = leer_usb_bloqueo();
       Serial.println("Leyendo " + opcionElegida
                      + " en la memoria " + numMemElegido + ":");
-      ultimoComandoEnviado = "Leer " + opcionElegida
-                             + " en la memoria " + numMemElegido;
+      ultimoComandoEnviado = "Leer " + opcionElegida +
+                             " en la memoria " + numMemElegido;
 
       // Ver funcion extraer_info_sms
       String resultadoLeido = extraer_info_sms(numMemElegido, opcionElegida);
