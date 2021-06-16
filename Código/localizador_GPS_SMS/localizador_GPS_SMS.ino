@@ -503,19 +503,19 @@ String extraer_info_sms(String posMem, String datoBuscado) {
   } else {
     extraerDatos.remove(0, extraerDatos.indexOf(' ') + 1);
 
-    String estado = extraerDatos.substring(0, extraerDatos.indexOf(','));   // REC READ
-    extraerDatos.remove(0, extraerDatos.indexOf(',') + 1);  // Quitar lo leído
+    String estado = extraerDatos.substring(0, extraerDatos.indexOf(','));       // REC READ
+    extraerDatos.remove(0, extraerDatos.indexOf(',') + 1);                      // Quitar lo leído
 
-    String numero = extraerDatos.substring(0, extraerDatos.indexOf(','));   // 03624164072
+    String numero = extraerDatos.substring(0, extraerDatos.indexOf(','));       // 03624164072
     extraerDatos.remove(0, extraerDatos.indexOf(',') + 2);
 
-    String fecha = extraerDatos.substring(0, extraerDatos.indexOf('/'));         // 99
+    String fecha = extraerDatos.substring(0, extraerDatos.indexOf('/'));        // 99
     extraerDatos.remove(0, extraerDatos.indexOf('/') + 1);
 
-    fecha = extraerDatos.substring(0, extraerDatos.indexOf('/')) + '/' + fecha;  // 12/99
+    fecha = extraerDatos.substring(0, extraerDatos.indexOf('/')) + '/' + fecha; // 12/99
     extraerDatos.remove(0, extraerDatos.indexOf('/') + 1);
 
-    fecha = extraerDatos.substring(0, extraerDatos.indexOf(',')) + '/' + fecha;  // 31/12/99
+    fecha = extraerDatos.substring(0, extraerDatos.indexOf(',')) + '/' + fecha; // 31/12/99
     extraerDatos.remove(0, extraerDatos.indexOf(',') + 1);
 
     String hora = extraerDatos.substring(0, 8);   // 00:12:17
